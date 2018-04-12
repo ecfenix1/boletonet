@@ -5,7 +5,7 @@ using System.Text;
 
 namespace BoletoNet
 {
-    public class EspecieDocumento : AbstractEspecieDocumento, IEspecieDocumento
+    public class EspecieDocumento : IEspecieDocumento
     {
 
         #region Variaveis
@@ -48,19 +48,19 @@ namespace BoletoNet
 
         #region Propriedades da interface
 
-        public override IBanco Banco
+        public IBanco Banco
         {
             get { return _IEspecieDocumento.Banco; }
             set { _IEspecieDocumento.Banco = value; }
         }
 
-        public override string Codigo
+        public string Codigo
         {
             get { return _IEspecieDocumento.Codigo; }
             set { _IEspecieDocumento.Codigo = value; }
         }
 
-        public override string Sigla
+        public string Sigla
         {
             get
             {
@@ -75,7 +75,7 @@ namespace BoletoNet
             set { _IEspecieDocumento.Sigla = value; }
         }
 
-        public override string Especie
+        public string Especie
         {
             get { return _IEspecieDocumento.Especie; }
             set { _IEspecieDocumento.Especie = value; }
@@ -145,11 +145,18 @@ namespace BoletoNet
                     case 4:
                         _IEspecieDocumento = new EspecieDocumento_Nordeste(codigoEspecie);
                         break;
+                    //655 - Votorantim
+                    case 655:
+                        _IEspecieDocumento = new EspecieDocumento_Votorantim(codigoEspecie);
+                        break;
                     case 707:
-                        this._IEspecieDocumento = new EspecieDocumento_Daycoval(codigoEspecie);
+                        _IEspecieDocumento = new EspecieDocumento_Daycoval(codigoEspecie);
                         break;
                     case 637:
-                        this._IEspecieDocumento = new EspecieDocumento_Sofisa(codigoEspecie);
+                        _IEspecieDocumento = new EspecieDocumento_Sofisa(codigoEspecie);
+                        break;
+                    case 21:
+                        _IEspecieDocumento = new EspecieDocumento_Banestes(codigoEspecie);
                         break;
                     default:
                         throw new Exception("Código do banco não implementando: " + codigoBanco);
@@ -231,7 +238,7 @@ namespace BoletoNet
             }
         }
 
-        public override IEspecieDocumento DuplicataMercantil()
+        public IEspecieDocumento DuplicataMercantil()
         {
             throw new NotImplementedException();
         }
@@ -260,7 +267,8 @@ namespace BoletoNet
                 { 756, new EspecieDocumento_Sicoob     ()  },
                 { 4, new EspecieDocumento_Nordeste     ()  },
                 { 707, new EspecieDocumento_Daycoval   ()  },
-                { 637, new EspecieDocumento_Sofisa     ()  }
+                { 637, new EspecieDocumento_Sofisa     ()  },
+                { 743, new EspecieDocumento_Semear     ()  }
         };
     }
 }

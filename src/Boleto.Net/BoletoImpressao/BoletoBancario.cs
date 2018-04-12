@@ -1,3 +1,4 @@
+using BoletoNet.Enums;
 using BoletoNet.Util;
 using System;
 using System.Collections.Generic;
@@ -26,9 +27,9 @@ namespace BoletoNet
     Designer(typeof(BoletoBancarioDesigner)),
     ToolboxBitmap(typeof(BoletoBancario)),
     ToolboxData("<{0}:BoletoBancario Runat=\"server\"></{0}:BoletoBancario>")]
-    public class BoletoBancario : System.Web.UI.Control
+    public class BoletoBancario : Control
     {
-        String vLocalLogoCedente = String.Empty;
+        string vLocalLogoCedente = string.Empty;
 
         #region Variaveis
 
@@ -206,6 +207,14 @@ namespace BoletoNet
             get { return Utils.ToBool(ViewState["8"]); }
             set { ViewState["8"] = value; }
         }
+
+        [Browsable(true), Description("Mostra o endereço do Cedente no Recibo Cedente")]
+        public bool MostrarEnderecoCedentenoRecibo
+        {
+            get { return Utils.ToBool(ViewState["9"]); }
+            set { ViewState["9"] = value; }
+        }
+
         #endregion Propriedades
 
         /// <summary> 
@@ -317,14 +326,13 @@ namespace BoletoNet
             }
         }
 
-        private string GeraHtmlCarne(string telefone, string htmlBoleto)
+        private string GeraHtmlCarne(string htmlBoleto)
         {
             var html = new StringBuilder();
 
             html.Append(Html.Carne);
 
             return html.ToString()
-                .Replace("@TELEFONE", telefone)
                 .Replace("#BOLETO#", htmlBoleto);
         }
         public string GeraHtmlReciboSacado()
@@ -375,7 +383,7 @@ namespace BoletoNet
 
                 html.Append(Html.ReciboCedenteParte1);
                 html.Append(Html.ReciboCedenteParte2);
-                html.Append(Html.ReciboCedenteParte3);
+                html.Append(MostrarEnderecoCedentenoRecibo ? Html.ReciboCedenteParte13 : Html.ReciboCedenteParte3);
                 html.Append(Html.ReciboCedenteParte4);
                 html.Append(Html.ReciboCedenteParte5);
                 html.Append(Html.ReciboCedenteParte6);
@@ -395,7 +403,7 @@ namespace BoletoNet
 
                 //Para carteiras "17-019" e "18-019" do Banco do Brasil, a ficha de compensação não possui código da carteira
                 //na formatação do campo.
-                if (Boleto.Banco.Codigo == 1 & (Boleto.Carteira.Equals("17-019") | Boleto.Carteira.Equals("17-027") | Boleto.Carteira.Equals("18-019") | Boleto.Carteira.Equals("17-159") | Boleto.Carteira.Equals("17-140") | Boleto.Carteira.Equals("17-067")))
+                if (Boleto.Banco.Codigo == 1 & (Boleto.Carteira.Equals("17-019") | Boleto.Carteira.Equals("17-027") | Boleto.Carteira.Equals("17-051") | Boleto.Carteira.Equals("18-019") | Boleto.Carteira.Equals("17-159") | Boleto.Carteira.Equals("17-140") | Boleto.Carteira.Equals("17-067")))
                 {
                     html.Replace("Carteira /", "");
                     html.Replace("@NOSSONUMERO", "@NOSSONUMEROBB");
@@ -463,7 +471,7 @@ namespace BoletoNet
                     Instrucoes.Add(instrucao);
                 }
 
-                _instrucoesHtml = Strings.Left(_instrucoesHtml, _instrucoesHtml.Length - 6);
+                _instrucoesHtml = _instrucoesHtml.Left(_instrucoesHtml.Length - 6);
             }
         }
 
@@ -545,10 +553,10 @@ namespace BoletoNet
                         if (Cedente.Endereco == null)
                             throw new ArgumentNullException("Endereço do Cedente");
 
-                        string Numero = !String.IsNullOrEmpty(Cedente.Endereco.Numero) ? Cedente.Endereco.Numero + ", " : "";
+                        string Numero = !string.IsNullOrEmpty(Cedente.Endereco.Numero) ? Cedente.Endereco.Numero + ", " : "";
                         enderecoCedente = string.Concat(Cedente.Endereco.End, " , ", Numero);
 
-                        if (Cedente.Endereco.CEP == String.Empty)
+                        if (Cedente.Endereco.CEP == string.Empty)
                         {
                             enderecoCedente += string.Format("{0} - {1}/{2}", Cedente.Endereco.Bairro,
                                                              Cedente.Endereco.Cidade, Cedente.Endereco.UF);
@@ -565,6 +573,7 @@ namespace BoletoNet
             }
 
             string sacado = "";
+            string cpfCnpj = string.Empty;
             //Flavio(fhlviana@hotmail.com) - adicionei a possibilidade de o boleto não ter, necessáriamente, que informar o CPF ou CNPJ do sacado.
             //Formata o CPF/CNPJ(se houver) e o Nome do Sacado para apresentação
             if (Sacado.CPFCNPJ == string.Empty)
@@ -573,20 +582,24 @@ namespace BoletoNet
             }
             else
             {
-                if (Sacado.CPFCNPJ.Length <= 11)
-                    sacado = string.Format("{0}  CPF: {1}", Sacado.Nome, Utils.FormataCPF(Sacado.CPFCNPJ));
-                else
-                    sacado = string.Format("{0}  CNPJ: {1}", Sacado.Nome, Utils.FormataCNPJ(Sacado.CPFCNPJ));
+                sacado = Sacado.CPFCNPJ.Length <= 11
+                    ? string.Format("{0}  CPF: {1}", Sacado.Nome, Utils.FormataCPF(Sacado.CPFCNPJ))
+                    : string.Format("{0}  CNPJ: {1}", Sacado.Nome, Utils.FormataCNPJ(Sacado.CPFCNPJ));
             }
 
-            String infoSacado = Sacado.InformacoesSacado.GeraHTML(false);
+            if (!string.IsNullOrEmpty(Cedente.CPFCNPJ))
+            {
+                cpfCnpj = Cedente.CPFCNPJ.Length <= 11 ? Utils.FormataCPF(Cedente.CPFCNPJ) : Utils.FormataCNPJ(Cedente.CPFCNPJ);
+            }
+
+            string infoSacado = Sacado.InformacoesSacado.GeraHTML(false);
 
             //Caso não oculte o Endereço do Sacado,
             if (!OcultarEnderecoSacado)
             {
-                String enderecoSacado = "";
+                string enderecoSacado = "";
 
-                if (Sacado.Endereco.CEP == String.Empty)
+                if (Sacado.Endereco.CEP == string.Empty)
                     enderecoSacado = string.Format("{0} - {1}/{2}", Sacado.Endereco.Bairro, Sacado.Endereco.Cidade, Sacado.Endereco.UF);
                 else
                     enderecoSacado = string.Format("{0} - {1}/{2} - CEP: {3}", Sacado.Endereco.Bairro,
@@ -594,7 +607,7 @@ namespace BoletoNet
 
                 if (Sacado.Endereco.End != string.Empty && enderecoSacado != string.Empty)
                 {
-                    string Numero = !String.IsNullOrEmpty(Sacado.Endereco.Numero) ? ", " + Sacado.Endereco.Numero : "";
+                    string Numero = !string.IsNullOrEmpty(Sacado.Endereco.Numero) ? ", " + Sacado.Endereco.Numero : "";
 
                     if (infoSacado == string.Empty)
                         infoSacado += InfoSacado.Render(Sacado.Endereco.End + Numero, enderecoSacado, false);
@@ -622,59 +635,68 @@ namespace BoletoNet
 
             if (!Cedente.DigitoCedente.Equals(-1))
             {
-                if (!String.IsNullOrEmpty(Cedente.ContaBancaria.OperacaConta))
-                    agenciaCodigoCedente = string.Format("{0}/{1}.{2}-{3}", Cedente.ContaBancaria.Agencia, Cedente.ContaBancaria.OperacaConta, Utils.FormatCode(Cedente.Codigo.ToString(), 6), Cedente.DigitoCedente.ToString());
+                //if (!string.IsNullOrEmpty(Cedente.ContaBancaria.OperacaConta))
+                //    agenciaCodigoCedente = string.Format("{0}/{1}.{2}-{3}", Cedente.ContaBancaria.Agencia, Cedente.ContaBancaria.OperacaConta, Utils.FormatCode(Cedente.Codigo, 6), Cedente.DigitoCedente);
 
                 switch (Boleto.Banco.Codigo)
                 {
-                    case 748:
+                    case (int)Bancos.Sicredi:
                         agenciaCodigoCedente = string.Format("{0}.{1}.{2}", Cedente.ContaBancaria.Agencia, Cedente.ContaBancaria.OperacaConta, Utils.FormatCode(Cedente.ContaBancaria.Conta, 5));
                         break;
-                    case 41:
-                        agenciaCodigoCedente = string.Format("{0}.{1}/{2}.{3}.{4}", Cedente.ContaBancaria.Agencia, Cedente.ContaBancaria.DigitoAgencia, Cedente.Codigo.Substring(4, 6), Cedente.Codigo.Substring(10, 1), Cedente.DigitoCedente);
+                    case (int)Bancos.Banrisul:
+                        var codigo = Cedente.Codigo;
+                        var dig1 = codigo.Substring(0, codigo.Length - (Cedente.DigCedente.Length + 1));
+                        var dig2 = codigo.Substring((codigo.Length - (Cedente.DigCedente.Length + 1)), 1);
+                        agenciaCodigoCedente = string.Format("{0}/{1}.{2}.{3}", Cedente.ContaBancaria.Agencia, dig1, dig2, Cedente.DigCedente);
+                        //agenciaCodigoCedente = string.Format("{0}.{1}/{2}.{3}.{4}", Cedente.ContaBancaria.Agencia, Cedente.ContaBancaria.DigitoAgencia, Cedente.Codigo.Substring(4, 6), Cedente.Codigo.Substring(10, 1), Cedente.DigitoCedente);
                         break;
-                    case 1:
+                    case (int)Bancos.BancoBrasil:
                         agenciaCodigoCedente = string.Format("{0}-{1}/{2}-{3}", Cedente.ContaBancaria.Agencia, Cedente.ContaBancaria.DigitoAgencia, Utils.FormatCode(Cedente.ContaBancaria.Conta, 6), Cedente.ContaBancaria.DigitoConta);
                         break;
-                    case 399:
-                        agenciaCodigoCedente = string.Format("{0}/{1}", Cedente.ContaBancaria.Agencia, Utils.FormatCode(Cedente.Codigo.ToString() + Cedente.DigitoCedente.ToString(), 7));
+                    case (int)Bancos.HSBC:
+                        agenciaCodigoCedente = string.Format("{0}/{1}", Cedente.ContaBancaria.Agencia, Utils.FormatCode(Cedente.Codigo + Cedente.DigitoCedente, 7));
                         break;
                     default:
-                        agenciaCodigoCedente = string.Format("{0}/{1}-{2}", Cedente.ContaBancaria.Agencia, Utils.FormatCode(Cedente.Codigo.ToString(), 6), Cedente.DigitoCedente.ToString());
+                        agenciaCodigoCedente = string.Format("{0}/{1}-{2}", Cedente.ContaBancaria.Agencia, Utils.FormatCode(Cedente.Codigo, 6), Cedente.DigitoCedente);
                         break;
                 }
             }
             else
             {
                 //Para banco SANTANDER, a formatação do campo "Agencia/Identif.Cedente" - por jsoda em 07/05/2012
-                if (Boleto.Banco.Codigo == 33)
+                switch (Boleto.Banco.Codigo)
                 {
-                    agenciaCodigoCedente = string.Format("{0}-{1}/{2}", Cedente.ContaBancaria.Agencia, Cedente.ContaBancaria.DigitoAgencia, Utils.FormatCode(Cedente.Codigo.ToString(), 6));
-                    if (String.IsNullOrEmpty(Cedente.ContaBancaria.DigitoAgencia))
-                        agenciaCodigoCedente = String.Format("{0}/{1}", Cedente.ContaBancaria.Agencia, Utils.FormatCode(Cedente.Codigo.ToString(), 6));
+                    case (int)Bancos.Santander:
+                        agenciaCodigoCedente = string.Format("{0}-{1}/{2}", Cedente.ContaBancaria.Agencia, Cedente.ContaBancaria.DigitoAgencia, Utils.FormatCode(Cedente.Codigo, 6));
+                        if (string.IsNullOrEmpty(Cedente.ContaBancaria.DigitoAgencia))
+			{
+                            agenciaCodigoCedente = string.Format("{0}/{1}", Cedente.ContaBancaria.Agencia, Utils.FormatCode(Cedente.Codigo, 6));			
+			    if (Utils.FormatCode(Cedente.Codigo, 6).Equals("000000"))
+			    {
+                               agenciaCodigoCedente = String.Format("{0}/{1}-{2}", Cedente.ContaBancaria.Agencia, Cedente.ContaBancaria.Conta,Cedente.ContaBancaria.DigitoConta);
+			    }
+		        }
+                        break;
+                    case (int)Bancos.HSBC:
+                        agenciaCodigoCedente = string.Format("{0}/{1}", Cedente.ContaBancaria.Agencia, Utils.FormatCode(Cedente.Codigo, 7)); //Solicitação do HSBC que mostrasse agencia/Conta - por Transis em 24/02/15
+                        break;
+                    case (int)Bancos.Sicredi:
+                        agenciaCodigoCedente = string.Format("{0}.{1}.{2}", Cedente.ContaBancaria.Agencia, Cedente.ContaBancaria.OperacaConta, Utils.FormatCode(Cedente.ContaBancaria.Conta, 5));
+                        break;
+                    default:
+                        agenciaCodigoCedente = agenciaConta;
+                        break;
                 }
-                else if (Boleto.Banco.Codigo == 399)
-                    //agenciaCodigoCedente = Utils.FormatCode(Cedente.Codigo.ToString(), 7); -> para Banco HSBC mostra apenas código Cedente - por Ponce em 08/06/2012
-                    agenciaCodigoCedente = String.Format("{0}/{1}", Cedente.ContaBancaria.Agencia, Utils.FormatCode(Cedente.Codigo.ToString(), 7)); //Solicitação do HSBC que mostrasse agencia/Conta - por Transis em 24/02/15
-                else if (Boleto.Banco.Codigo == 748)
-                    agenciaCodigoCedente = string.Format("{0}.{1}.{2}", Cedente.ContaBancaria.Agencia, Cedente.ContaBancaria.OperacaConta, Utils.FormatCode(Cedente.ContaBancaria.Conta, 5));
-                else
-                    agenciaCodigoCedente = agenciaConta;
             }
 
-            if (!FormatoCarne)
-                html.Append(GeraHtmlReciboCedente());
-            else
-            {
-                html.Append(GeraHtmlCarne("", GeraHtmlReciboCedente()));
-            }
+            html.Append(!FormatoCarne ? GeraHtmlReciboCedente() : GeraHtmlCarne(GeraHtmlReciboCedente()));
 
             string dataVencimento = Boleto.DataVencimento.ToString("dd/MM/yyyy");
 
             if (MostrarContraApresentacaoNaDataVencimento)
                 dataVencimento = "Contra Apresentação";
 
-            if (String.IsNullOrEmpty(vLocalLogoCedente))
+            if (string.IsNullOrEmpty(vLocalLogoCedente))
                 vLocalLogoCedente = urlImagemLogo;
 
             var valorBoleto = (Boleto.ValorBoleto == 0 ? "" : Boleto.ValorBoleto.ToString("C", CultureInfo.GetCultureInfo("PT-BR")));
@@ -703,13 +725,13 @@ namespace BoletoNet
 
             #region Implementação para o Banco do Brasil
 
-                //Variável inserida para atender às especificações das carteiras "17-019", "17-027" e "18-019" do Banco do Brasil
+                //Variável inserida para atender às especificações das carteiras "17-019", "17-027", "17-051" e "18-019" do Banco do Brasil
                 //apenas para a ficha de compensação.
-                //Como a variável não existirá se não forem as carteiras "17-019", "17-027", "17-019", "17-035", "17-140", "17-159", "17-067", "17-167" e "18-019", não foi colocado o [if].
+                //Como a variável não existirá se não forem as carteiras "17-019", "17-027", "17-051", "17-019", "17-035", "17-140", "17-159", "17-067", "17-167" e "18-019", não foi colocado o [if].
                 .Replace(
                     "@NOSSONUMEROBB",
                     Boleto.Banco.Codigo == 1
-                    & (Boleto.Carteira.Equals("17-019") | Boleto.Carteira.Equals("17-027") | Boleto.Carteira.Equals("17-035")
+                    & (Boleto.Carteira.Equals("17-019") | Boleto.Carteira.Equals("17-027") | Boleto.Carteira.Equals("17-051") | Boleto.Carteira.Equals("17-035")
                         | Boleto.Carteira.Equals("18-019") | Boleto.Carteira.Equals("17-140") | Boleto.Carteira.Equals("17-159")
                         | Boleto.Carteira.Equals("17-067") | Boleto.Carteira.Equals("17-167"))
                         ? Boleto.NossoNumero.Substring(3)
@@ -750,13 +772,13 @@ namespace BoletoNet
                         "{0} - {1}",
                         Boleto.Avalista != null ? Boleto.Avalista.Nome : string.Empty,
                         Boleto.Avalista != null ? Boleto.Avalista.CPFCNPJ : string.Empty))
-                .Replace("Ar\">R$", RemoveSimboloMoedaValorDocumento ? "Ar\">" : "Ar\">R$");
-
+                .Replace("Ar\">R$", RemoveSimboloMoedaValorDocumento ? "Ar\">" : "Ar\">R$")
+                .Replace("@PARCELATOTAL", Boleto.NumeroParcela != 0 && Boleto.TotalParcela != 0 ? Boleto.NumeroParcela + " / " + Boleto.TotalParcela : string.Empty)
+                .Replace("@DADOSCEDENTE", MostrarEnderecoCedentenoRecibo ? Cedente.Nome + " " + cpfCnpj + " " + enderecoCedente : "");
         }
 
         private string FormataDescricaoCarteira()
         {
-
             if (MostrarCodigoCarteira)
             {
                 string descricaoCarteira = "";
@@ -781,7 +803,6 @@ namespace BoletoNet
 
                     default:
                         throw new Exception(string.Format("A descrição para o banco {0} não foi implementada.", Boleto.Banco));
-                        throw new Exception(string.Format("A descrição da carteira {0} / banco {1} não foi implementada (marque false na propriedade MostrarCodigoCarteira)", carteira, Banco.Codigo));
 
                 }
 
@@ -793,10 +814,7 @@ namespace BoletoNet
                 return string.Format("{0} - {1}", Boleto.Carteira,
                      descricaoCarteira);
             }
-            else
-            {
-                return Boleto.Carteira;
-            }
+            return Boleto.Carteira;
         }
 
         #endregion Html
@@ -810,18 +828,20 @@ namespace BoletoNet
         /// <param name="srcBarra">Local apontado pela imagem de barra.</param>
         /// <param name="srcCodigoBarra">Local apontado pela imagem do código de barras.</param>
         /// <returns>StringBuilder conténdo o código html do boleto bancário.</returns>
-        protected StringBuilder HtmlOffLine(string textoNoComecoDoEmail, string srcLogo, string srcBarra, string srcCodigoBarra, bool usaCSSPDF = false)
+        protected StringBuilder HtmlOffLine(string textoNoComecoDoEmail, string srcLogo, string srcBarra, string srcCodigoBarra, bool usaCSSPDF = false, bool imprimeHeader = true, bool imprimeFooter = true)
         {//protected StringBuilder HtmlOffLine(string srcCorte, string srcLogo, string srcBarra, string srcPonto, string srcBarraInterna, string srcCodigoBarra)
             this.OnLoad(EventArgs.Empty);
 
             StringBuilder html = new StringBuilder();
-            HtmlOfflineHeader(html, usaCSSPDF);
-            if (textoNoComecoDoEmail != null && textoNoComecoDoEmail != "")
+            if (imprimeHeader)
+                HtmlOfflineHeader(html, usaCSSPDF);
+            if (!string.IsNullOrEmpty(textoNoComecoDoEmail))
             {
                 html.Append(textoNoComecoDoEmail);
             }
             html.Append(MontaHtml(srcLogo, srcBarra, "<img src=\"" + srcCodigoBarra + "\" alt=\"Código de Barras\" />"));
-            HtmlOfflineFooter(html);
+            if (imprimeFooter)
+                HtmlOfflineFooter(html);
             return html;
         }
 
@@ -832,14 +852,14 @@ namespace BoletoNet
         /// Monta o Header de um email com pelo menos um boleto dentro.
         /// </summary>
         /// <param name="saida">StringBuilder onde o conteudo sera salvo.</param>
-        protected static void HtmlOfflineHeader(StringBuilder html, bool usaCSSPDF = false)
+        protected static void HtmlOfflineHeader(StringBuilder html, bool usaCSSPDF = false, string titulo = "Boleto.Net")
         {
             html.Append("<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">\n");
             html.Append("<html xmlns=\"http://www.w3.org/1999/xhtml\">\n");
             html.Append("<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">\n");
             html.Append("<meta charset=\"utf-8\"/>\n");
             html.Append("<head>");
-            html.Append("    <title>Boleto.Net</title>\n");
+            html.Append("    <title>" + titulo + "</title>\n");
 
             #region Css
             {
@@ -1188,12 +1208,13 @@ namespace BoletoNet
         /// de acordo com o padrão http://en.wikipedia.org/wiki/Data_URI_scheme
         /// </summary>
         /// <param name="convertLinhaDigitavelToImage">Converte a Linha Digitável para imagem, com o objetivo de evitar malwares.</param>
+        /// <param name="somenteHtmlBoleto">Quando true imprime apenas a table do boleto ignorando o CSS e o html/head/body. Utilizado para dimunir o tamanho do html quando imprimir mais de um boleto</param>
         /// <returns>Html do boleto gerado</returns>
         /// <desenvolvedor>Iuri André Stona</desenvolvedor>
         /// <criacao>23/01/2014</criacao>
         /// <alteracao>08/08/2014</alteracao>
 
-        public string MontaHtmlEmbedded(bool convertLinhaDigitavelToImage = false, bool usaCSSPDF = false)
+        public string MontaHtmlEmbedded(bool convertLinhaDigitavelToImage = false, bool usaCSSPDF = false, bool imprimeHeader = true, bool imprimeFooter = true)
         {
             OnLoad(EventArgs.Empty);
             Stream streamBarra = null;
@@ -1225,7 +1246,7 @@ namespace BoletoNet
                     Boleto.CodigoBarra.LinhaDigitavel = @"<img style=""max-width:420px; margin-bottom: 2px"" src=" + fnLinha + " />";
                 }
 
-                string s = HtmlOffLine(null, fnLogo, fnBarra, fnCodigoBarras, usaCSSPDF).ToString();
+                string s = HtmlOffLine(null, fnLogo, fnBarra, fnCodigoBarras, usaCSSPDF, imprimeHeader, imprimeFooter).ToString();
 
                 if (convertLinhaDigitavelToImage)
                 {
@@ -1270,32 +1291,44 @@ namespace BoletoNet
         /// <param name="tituloPDF">Título No Início do PDF</param>
         /// <param name="PretoBranco">Preto e Branco = true</param>
         /// <param name="convertLinhaDigitavelToImage">bool Converter a Linha Digitavel Em Imagem</param>
+        /// <param name="BoletosPorPagina">Quantidade de Boletos até o próximo LineBreak. Lembre de Utilizar o Zoom para ajustar a página</param>
+        /// <param name="ZoomPercent">Percentual da Scala do PDF. Para 3 Boletos na mesma Página com Carnê utilize 80%</param>				
         /// <returns>byte[], Vetor de bytes do PDF</returns>
-        public byte[] MontaBytesListaBoletosPDF(List<BoletoBancario> boletos, string tituloNaView = "", string CustomSwitches = "", string tituloPDF = "", bool PretoBranco = false, bool convertLinhaDigitavelToImage = false)
+        public byte[] MontaBytesListaBoletosPDF(List<BoletoBancario> boletos, string tituloNaView = "", string CustomSwitches = "", string tituloPDF = "", bool PretoBranco = false, bool convertLinhaDigitavelToImage = false, int BoletosPorPagina = 1, float ZoomPercent = 100)
         {
             StringBuilder htmlBoletos = new StringBuilder();
-            htmlBoletos.Append("<html><head><title>");
-            htmlBoletos.Append(tituloNaView);
-            htmlBoletos.Append("</title><style type='text/css' media='screen,print'>");
-            htmlBoletos.Append(".break{ display: block; clear: both; page-break-after: always;}");
-            htmlBoletos.Append("</style></head><body>");
+            HtmlOfflineHeader(htmlBoletos, true, tituloNaView);
+
             if (!string.IsNullOrEmpty(tituloPDF))
             {
                 htmlBoletos.Append("<br/><center><h1>");
                 htmlBoletos.Append(tituloPDF);
                 htmlBoletos.Append("</h1></center><br/>");
             }
+            int qtdeBoletosPagina = 0;
             foreach (BoletoBancario boleto in boletos)
             {
-                htmlBoletos.Append("<div class='break'>");
-                htmlBoletos.Append(boleto.MontaHtmlEmbedded(convertLinhaDigitavelToImage, true));
+                qtdeBoletosPagina++;
+
+                if (qtdeBoletosPagina % BoletosPorPagina == 0)
+                {
+                    htmlBoletos.Append("<div class='break'>");
+                    qtdeBoletosPagina = 0;
+                }
+                else
+                {
+                    htmlBoletos.Append("<div>");
+                }
+                htmlBoletos.Append(boleto.MontaHtmlEmbedded(convertLinhaDigitavelToImage, true, false, false));
                 htmlBoletos.Append("</div>");
             }
-            htmlBoletos.Append("</body></html>");
+            HtmlOfflineFooter(htmlBoletos);
+
             var converter = new NReco.PdfGenerator.HtmlToPdfConverter()
             {
                 CustomWkHtmlArgs = CustomSwitches,
-                Grayscale = PretoBranco
+                Grayscale = PretoBranco,
+                Zoom = ZoomPercent / 100
             };
             if (!string.IsNullOrEmpty(this.PdfToolPath))
             {
@@ -1335,7 +1368,7 @@ namespace BoletoNet
                 if (streamLogo != null)
                 {
                     streamLogo.Close();
-                } 
+                }
             }
 
         }
